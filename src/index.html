@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini Game Mobile Legends - 30 Lawan</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #222;
+    color: #fff;
+    margin: 0;
+    overflow: hidden;
+  }
+  #gameArea {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background-color: #444;
+  }
+  .player, .enemy {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: #fff;
+  }
+  #player {
+    background-color: #4CAF50;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  /* Lawan */
+  .enemy {
+    background-color: #f44336;
+  }
+  #points {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 20px;
+  }
+  #status {
+    position: absolute;
+    top: 40px;
+    left: 10px;
+    font-size: 18px;
+  }
+</style>
+</head>
+<body>
+
+<div id="gameArea">
+  <div id="player" class="player">P</div>
+</div>
+<div id="points">Points: 0</div>
+<div id="status">Tekan 'F' untuk serang, 'WASD' untuk bergerak, 'P' lihat poin, 'R' restart</div>
+
+<script>
+const gameArea = document.getElementById('gameArea');
+const player = document.getElementById('player');
+const pointsDisplay = document.getElementById('points');
+const status = document.getElementById('status');
+
+let points = localStorage.getItem('points') ? parseInt(localStorage.getItem('points')) : 0;
+let keysPressed = {};
+
+// Posisi pemain
+let playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
+let enemies = [];
+
+const NUM_ENEMIES = 30; // Jumlah lawan
+const ENEMY_SIZE = 40; // Ukuran musuh
+const PLAYER_SPEED = 3; // Kecepatan pemain
+const ENEMY_ATTACK_RANGE = 50; // Jarak serangan musuh
+const ENEMY_ATTACK_INTERVAL = 1000; // Interval serangan musuh (ms)
+
+// Fungsi buat posisi acak
+function getRandomPosition() {
+  const x = Math.random() * (window.innerWidth - ENEMY_SIZE);
+  const y = Math.random() * (window.innerHeight - ENEMY_SIZE);
+  return { x, y };
+}
+
+// Inisialisasi lawan
+function initEnemies() {
+  enemies = [];
+  // Hapus lawan sebelumnya dari DOM
+  document.querySelectorAll('.enemy').forEach(e => e.remove());
+  for (let i = 0; i < NUM_ENEMIES; i++) {
+    const el = document.createElement('div');
+    el.className = 'enemy';
+    el.innerText = 'E' + (i + 1);
+    gameArea.appendChild(el);
+    const pos = getRandomPosition();
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    enemies.push({ element: el, x: pos.x, y: pos.y, alive: true });
+  }
+}
+
+// Update posisi pemain di DOM
+function updatePlayerPosition() {
+  player.style.left = playerPos.x + 'px';
+  player.style.top = playerPos.y + 'px';
+}
+
+// Inisialisasi game
+initEnemies();
+updatePlayerPosition();
+updatePointsDisplay();
+
+// Update tampilan poin
+function updatePointsDisplay() {
+  pointsDisplay.innerText = 'Points: ' + points;
+}
+
+// Game loop untuk gerakan yang mulus
+function gameLoop() {
+  // Gerakan pemain berdasarkan tombol yang ditekan
+  if (keysPressed['w']) playerPos.y -= PLAYER_SPEED;
+  if (keysPressed['s']) playerPos.y += PLAYER_SPEED;
+  if (keysPressed['a']) playerPos.x -= PLAYER_SPEED;
+  if (keysPressed['d']) playerPos.x += PLAYER_SPEED;
+
+  // Batasi posisi pemain agar tidak keluar layar
+  if (playerPos.x < 0) playerPos.x = 0;
+  if (playerPos.y < 0) playerPos.y = 0;
+  if (playerPos.x > window.innerWidth - ENEMY_SIZE) playerPos.x = window.innerWidth - ENEMY_SIZE;
+  if (playerPos.y > window.innerHeight - ENEMY_SIZE) playerPos.y = window.innerHeight - ENEMY_SIZE;
+
+  updatePlayerPosition();
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+
+// Event listener untuk tombol ditekan
+document.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  keysPressed[key] = true;
+  if (key === 'f') {
+    attack();
+  } else if (key === 'p') {
+    alert('Poin kamu: ' + points);
+  } else if (key === 'r') {
+    restartGame();
+  }
+});
+
+// Event listener untuk tombol dilepas
+document.addEventListener('keyup', (e) => {
+  keysPressed[e.key.toLowerCase()] = false;
+});
+
+// Fungsi untuk menyerang lawan
+function attack() {
+  enemies.forEach(e => {
+    if (e.alive && isNear(playerPos, e)) {
+      e.alive = false;
+      e.element.style.display = 'none'; // Sembunyikan lawan yang dikalahkan
+      points += 1;
+      localStorage.setItem('points', points); // Simpan poin ke localStorage
+      updatePointsDisplay();
+      status.innerText = 'Kamu mengalahkan lawan!';
+      // Beri jeda sebelum status berubah
+      setTimeout(() => {
+        if (enemies.some(en => en.alive)) {
+          status.innerText = 'Lawan menyerang kamu!';
+        } else {
+          status.innerText = 'Semua lawan dikalahkan! Tekan R untuk restart.';
+        }
+      }, 500);
+    }
+  });
+}
+
+// Cek apakah pemain dekat dengan lawan
+function isNear(pos1, enemy) {
+  const dx = pos1.x - enemy.x;
+  const dy = pos1.y - enemy.y;
+  // Menggunakan Pythagoras untuk menghitung jarak
+  return Math.sqrt(dx*dx + dy*dy) < ENEMY_ATTACK_RANGE;
+}
+
+// Interval untuk membuat lawan menyerang secara otomatis
+setInterval(() => {
+  enemies.forEach(e => {
+    if (e.alive && isNear(playerPos, e)) {
+      status.innerText = 'Kamu diserang oleh ' + e.element.innerText;
+      // Di sini bisa ditambahkan logika pengurangan health pemain atau game over
+    }
+  });
+}, ENEMY_ATTACK_INTERVAL);
+
+// Fungsi untuk me-restart game
+function restartGame() {
+  // Reset posisi pemain ke tengah layar
+  playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
+  updatePlayerPosition();
+  // Inisialisasi ulang lawan
+  initEnemies();
+  status.innerText = 'Game di-restart!';
+}
+
+// Handle resize window agar posisi pemain tetap proporsional
+window.addEventListener('resize', () => {
+  // Pastikan pemain tidak keluar dari batas baru layar
+  if (playerPos.x > window.innerWidth - ENEMY_SIZE) playerPos.x = window.innerWidth - ENEMY_SIZE;
+  if (playerPos.y > window.innerHeight - ENEMY_SIZE) playerPos.y = window.innerHeight - ENEMY_SIZE;
+  updatePlayerPosition();
+});
+</script>
+
+</body>
+</html>
