@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>Game Mobile Legends v4</title><meta name="title" content="Game Mobile Legends v4"><meta charset="UTF-8">
+<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>Game Mobile Legends v5</title><meta name="title" content="Game Mobile Legends v5"><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="stylesheet" href="./style.css"><script src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js" async=""></script><script type="importmap">{
   "imports": {}
 }</script></head><body>
@@ -7,7 +7,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Game Mobile Legends - Lawan Spesial</title>
+<title>Mini Game Mobile Legends - Lawan Super Spesial</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -22,7 +22,7 @@
     height: 100vh;
     background-color: #444;
   }
-  .player, .enemy, .special-enemy {
+  .player, .enemy, .special-enemy, .super-special-enemy {
     position: absolute;
     width: 40px;
     height: 40px;
@@ -45,6 +45,9 @@
   .special-enemy {
     background-color: #FFA500; /* Oranye untuk lawan spesial */
   }
+  .super-special-enemy {
+    background-color: #000000; /* Hitam untuk lawan super spesial */
+  }
   #points {
     position: absolute;
     top: 10px;
@@ -62,7 +65,7 @@
 
 
 <div id="gameArea">
-  <div id="player" class="player">P</div>
+  <div id="player" class="player">you</div>
 </div>
 <div id="points">Points: 0</div>
 <div id="status">Tekan 'F' untuk serang, 'WASD' untuk bergerak, 'P' lihat poin, 'R' restart</div>
@@ -73,19 +76,22 @@ const player = document.getElementById('player');
 const pointsDisplay = document.getElementById('points');
 const status = document.getElementById('status');
 
+// Load poin dari localStorage atau inisialisasi jika belum ada
 let points = localStorage.getItem('points') ? parseInt(localStorage.getItem('points')) : 0;
-let keysPressed = {};
+let keysPressed = {}; // Objek untuk melacak tombol yang ditekan
 
 // Posisi pemain
 let playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
-let enemies = []; // Array untuk menyimpan semua lawan (biasa dan spesial)
+let enemies = []; // Array untuk menyimpan semua lawan (biasa, spesial, super spesial)
 
 const NUM_NORMAL_ENEMIES = 30; // Jumlah lawan biasa
-const SPECIAL_ENEMY_POINTS = 4500; // Poin dari lawan spesial
-const ENEMY_SIZE = 40;
-const PLAYER_SPEED = 3;
-const ENEMY_ATTACK_RANGE = 50;
-const ENEMY_ATTACK_INTERVAL = 1000;
+const SPECIAL_ENEMY_POINTS = 4500; // Poin dari lawan spesial oranye
+const SUPER_SPECIAL_ENEMY_POINTS = 45000; // Poin dari lawan super spesial hitam
+
+const ENEMY_SIZE = 40; // Ukuran semua lawan
+const PLAYER_SPEED = 3; // Kecepatan pemain
+const ENEMY_ATTACK_RANGE = 50; // Jarak serangan lawan
+const ENEMY_ATTACK_INTERVAL = 1000; // Interval serangan lawan (ms)
 
 // Fungsi untuk mendapatkan posisi acak di dalam game area
 function getRandomPosition() {
@@ -96,11 +102,11 @@ function getRandomPosition() {
 
 // Fungsi untuk inisialisasi semua lawan
 function initEnemies() {
-  enemies = [];
-  // Hapus lawan sebelumnya dari DOM
-  document.querySelectorAll('.enemy, .special-enemy').forEach(e => e.remove());
+  enemies = []; // Kosongkan array lawan
+  // Hapus elemen lawan yang ada di DOM sebelum membuat yang baru
+  document.querySelectorAll('.enemy, .special-enemy, .super-special-enemy').forEach(e => e.remove());
 
-  // Buat lawan biasa
+  // 1. Buat lawan biasa (merah)
   for (let i = 0; i < NUM_NORMAL_ENEMIES; i++) {
     const el = document.createElement('div');
     el.className = 'enemy';
@@ -109,10 +115,10 @@ function initEnemies() {
     const pos = getRandomPosition();
     el.style.left = pos.x + 'px';
     el.style.top = pos.y + 'px';
-    enemies.push({ element: el, x: pos.x, y: pos.y, alive: true, isSpecial: false });
+    enemies.push({ element: el, x: pos.x, y: pos.y, alive: true, isSpecial: false, isSuperSpecial: false });
   }
 
-  // Buat lawan spesial
+  // 2. Buat lawan spesial (oranye)
   const specialEl = document.createElement('div');
   specialEl.className = 'special-enemy';
   specialEl.innerText = 'SP'; // Label untuk lawan spesial
@@ -120,7 +126,17 @@ function initEnemies() {
   const specialPos = getRandomPosition();
   specialEl.style.left = specialPos.x + 'px';
   specialEl.style.top = specialPos.y + 'px';
-  enemies.push({ element: specialEl, x: specialPos.x, y: specialPos.y, alive: true, isSpecial: true });
+  enemies.push({ element: specialEl, x: specialPos.x, y: specialPos.y, alive: true, isSpecial: true, isSuperSpecial: false });
+
+  // 3. Buat lawan super spesial (hitam)
+  const superSpecialEl = document.createElement('div');
+  superSpecialEl.className = 'super-special-enemy';
+  superSpecialEl.innerText = 'SS'; // Label untuk lawan super spesial
+  gameArea.appendChild(superSpecialEl);
+  const superSpecialPos = getRandomPosition();
+  superSpecialEl.style.left = superSpecialPos.x + 'px';
+  superSpecialEl.style.top = superSpecialPos.y + 'px';
+  enemies.push({ element: superSpecialEl, x: superSpecialPos.x, y: superSpecialPos.y, alive: true, isSpecial: false, isSuperSpecial: true });
 }
 
 // Update posisi pemain di DOM
@@ -161,7 +177,7 @@ requestAnimationFrame(gameLoop); // Mulai game loop
 // Event listener untuk tombol ditekan
 document.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase();
-  keysPressed[key] = true;
+  keysPressed[key] = true; // Tandai tombol ditekan
   if (key === 'f') {
     attack();
   } else if (key === 'p') {
@@ -173,7 +189,7 @@ document.addEventListener('keydown', (e) => {
 
 // Event listener untuk tombol dilepas
 document.addEventListener('keyup', (e) => {
-  keysPressed[e.key.toLowerCase()] = false;
+  keysPressed[e.key.toLowerCase()] = false; // Tandai tombol dilepas
 });
 
 // Fungsi untuk menyerang lawan
@@ -183,21 +199,24 @@ function attack() {
       e.alive = false;
       e.element.style.display = 'none'; // Sembunyikan lawan yang dikalahkan
 
-      let pointsGained = 1; // Poin default
-      if (e.isSpecial) {
+      let pointsGained = 1; // Poin default untuk lawan biasa
+      let message = 'Kamu mengalahkan lawan.';
+
+      if (e.isSuperSpecial) {
+        pointsGained = SUPER_SPECIAL_ENEMY_POINTS;
+        message = 'Kamu mengalahkan LAWAN SUPER SPESIAL!!!';
+      } else if (e.isSpecial) {
         pointsGained = SPECIAL_ENEMY_POINTS;
-        status.innerText = 'Kamu mengalahkan LAWAN SPESIAL!';
-      } else {
-        status.innerText = 'Kamu mengalahkan lawan.';
+        message = 'Kamu mengalahkan LAWAN SPESIAL!';
       }
 
       points += pointsGained;
       localStorage.setItem('points', points); // Simpan poin ke localStorage
       updatePointsDisplay();
+      status.innerText = message;
 
-      // Beri jeda sebelum status berubah
+      // Beri jeda sebelum status berubah dan cek apakah ada lawan yang tersisa
       setTimeout(() => {
-        // Cek apakah masih ada lawan hidup
         const remainingEnemies = enemies.filter(en => en.alive);
         if (remainingEnemies.length > 0) {
           status.innerText = 'Lawan menyerang kamu!';
