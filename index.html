@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>Game Mobile Legends v3</title><meta name="title" content="Game Mobile Legends v3"><meta charset="UTF-8">
+<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>Game Mobile Legends v4</title><meta name="title" content="Game Mobile Legends v4"><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="stylesheet" href="./style.css"><script src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js" async=""></script><script type="importmap">{
   "imports": {}
 }</script></head><body>
@@ -7,7 +7,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Game Mobile Legends - 30 Lawan</title>
+<title>Mini Game Mobile Legends - Link Tambahan</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -55,6 +55,47 @@
     left: 10px;
     font-size: 18px;
   }
+
+  /* Style untuk tombol menu */
+  #menuButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    z-index: 10; /* Pastikan tombol di atas elemen lain */
+  }
+  #menuButton:hover {
+    background-color: #0056b3;
+  }
+
+  /* Style untuk dropdown menu */
+  #linkDropdown {
+    position: absolute;
+    top: 50px; /* Sesuaikan jarak dari tombol */
+    right: 10px;
+    background-color: #333;
+    border: 1px solid #555;
+    border-radius: 5px;
+    display: none; /* Awalnya disembunyikan */
+    z-index: 9; /* Di bawah tombol, tapi di atas game */
+    min-width: 150px;
+  }
+  #linkDropdown a {
+    color: white;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: 14px;
+  }
+  #linkDropdown a:hover {
+    background-color: #555;
+  }
 </style>
 
 
@@ -65,26 +106,35 @@
 <div id="points">Points: 0</div>
 <div id="status">Tekan 'F' untuk serang, 'WASD' untuk bergerak, 'P' lihat poin, 'R' restart</div>
 
+<!-- Tombol Menu -->
+<button id="menuButton">Menu</button>
+
+<!-- Dropdown Menu -->
+<div id="linkDropdown">
+  <a href="https://www.tiktok.com" target="_blank">TikTok</a>
+</div>
+
 <script>
 const gameArea = document.getElementById('gameArea');
 const player = document.getElementById('player');
 const pointsDisplay = document.getElementById('points');
 const status = document.getElementById('status');
+const menuButton = document.getElementById('menuButton');
+const linkDropdown = document.getElementById('linkDropdown');
 
 let points = localStorage.getItem('points') ? parseInt(localStorage.getItem('points')) : 0;
 let keysPressed = {};
 
-// Posisi pemain
 let playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
 let enemies = [];
 
-const NUM_ENEMIES = 30; // Jumlah lawan
-const ENEMY_SIZE = 40; // Ukuran musuh
-const PLAYER_SPEED = 3; // Kecepatan pemain
-const ENEMY_ATTACK_RANGE = 50; // Jarak serangan musuh
-const ENEMY_ATTACK_INTERVAL = 1000; // Interval serangan musuh (ms)
+const NUM_ENEMIES = 30;
+const ENEMY_SIZE = 40;
+const PLAYER_SPEED = 3;
+const ENEMY_ATTACK_RANGE = 50;
+const ENEMY_ATTACK_INTERVAL = 1000;
 
-// Fungsi buat posisi acak
+// Fungsi untuk posisi acak
 function getRandomPosition() {
   const x = Math.random() * (window.innerWidth - ENEMY_SIZE);
   const y = Math.random() * (window.innerHeight - ENEMY_SIZE);
@@ -94,7 +144,6 @@ function getRandomPosition() {
 // Inisialisasi lawan
 function initEnemies() {
   enemies = [];
-  // Hapus lawan sebelumnya dari DOM
   document.querySelectorAll('.enemy').forEach(e => e.remove());
   for (let i = 0; i < NUM_ENEMIES; i++) {
     const el = document.createElement('div');
@@ -126,7 +175,6 @@ function updatePointsDisplay() {
 
 // Game loop untuk gerakan yang mulus
 function gameLoop() {
-  // Gerakan pemain berdasarkan tombol yang ditekan
   if (keysPressed['w']) playerPos.y -= PLAYER_SPEED;
   if (keysPressed['s']) playerPos.y += PLAYER_SPEED;
   if (keysPressed['a']) playerPos.x -= PLAYER_SPEED;
@@ -166,12 +214,11 @@ function attack() {
   enemies.forEach(e => {
     if (e.alive && isNear(playerPos, e)) {
       e.alive = false;
-      e.element.style.display = 'none'; // Sembunyikan lawan yang dikalahkan
+      e.element.style.display = 'none';
       points += 1;
-      localStorage.setItem('points', points); // Simpan poin ke localStorage
+      localStorage.setItem('points', points);
       updatePointsDisplay();
       status.innerText = 'Kamu mengalahkan lawan!';
-      // Beri jeda sebelum status berubah
       setTimeout(() => {
         if (enemies.some(en => en.alive)) {
           status.innerText = 'Lawan menyerang kamu!';
@@ -187,7 +234,6 @@ function attack() {
 function isNear(pos1, enemy) {
   const dx = pos1.x - enemy.x;
   const dy = pos1.y - enemy.y;
-  // Menggunakan Pythagoras untuk menghitung jarak
   return Math.sqrt(dx*dx + dy*dy) < ENEMY_ATTACK_RANGE;
 }
 
@@ -196,27 +242,40 @@ setInterval(() => {
   enemies.forEach(e => {
     if (e.alive && isNear(playerPos, e)) {
       status.innerText = 'Kamu diserang oleh ' + e.element.innerText;
-      // Di sini bisa ditambahkan logika pengurangan health pemain atau game over
     }
   });
 }, ENEMY_ATTACK_INTERVAL);
 
 // Fungsi untuk me-restart game
 function restartGame() {
-  // Reset posisi pemain ke tengah layar
   playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
   updatePlayerPosition();
-  // Inisialisasi ulang lawan
   initEnemies();
   status.innerText = 'Game di-restart!';
 }
 
-// Handle resize window agar posisi pemain tetap proporsional
+// Handle resize window
 window.addEventListener('resize', () => {
-  // Pastikan pemain tidak keluar dari batas baru layar
   if (playerPos.x > window.innerWidth - ENEMY_SIZE) playerPos.x = window.innerWidth - ENEMY_SIZE;
   if (playerPos.y > window.innerHeight - ENEMY_SIZE) playerPos.y = window.innerHeight - ENEMY_SIZE;
   updatePlayerPosition();
+});
+
+// Event listener untuk tombol menu
+menuButton.addEventListener('click', () => {
+  // Toggle tampilan dropdown
+  if (linkDropdown.style.display === 'block') {
+    linkDropdown.style.display = 'none';
+  } else {
+    linkDropdown.style.display = 'block';
+  }
+});
+
+// Tutup dropdown jika klik di luar area dropdown atau tombol menu
+document.addEventListener('click', (e) => {
+  if (!linkDropdown.contains(e.target) && e.target !== menuButton) {
+    linkDropdown.style.display = 'none';
+  }
 });
 </script>
 
