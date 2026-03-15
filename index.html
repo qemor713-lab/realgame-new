@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>Game Mobile Legends v5</title><meta name="title" content="Game Mobile Legends v5"><meta charset="UTF-8">
+<html lang="en" class=""><head><script>window.livecodes = window.livecodes || {};</script><title>Game Mobile Legends (big Update)</title><meta name="title" content="Game Mobile Legends (big Update)"><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="stylesheet" href="./style.css"><script src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js" async=""></script><script type="importmap">{
   "imports": {}
 }</script></head><body>
@@ -7,7 +7,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Game Mobile Legends - Lawan Super Spesial</title>
+<title>Mini Game Mobile Legends - Tombol Main</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -15,12 +15,18 @@
     color: #fff;
     margin: 0;
     overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
   }
   #gameArea {
     position: relative;
     width: 100vw;
     height: 100vh;
     background-color: #444;
+    display: none; /* Sembunyikan area game secara default */
+    z-index: 2; /* Pastikan game di atas elemen lain */
   }
   .player, .enemy, .special-enemy, .super-special-enemy {
     position: absolute;
@@ -35,235 +41,310 @@
   }
   #player {
     background-color: #4CAF50;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
   }
   .enemy {
-    background-color: #f44336; /* Merah untuk lawan biasa */
+    background-color: #f44336; /* Merah */
   }
   .special-enemy {
-    background-color: #FFA500; /* Oranye untuk lawan spesial */
+    background-color: #FFA500; /* Oranye */
   }
   .super-special-enemy {
-    background-color: #000000; /* Hitam untuk lawan super spesial */
+    background-color: #000000; /* Hitam */
   }
   #points {
     position: absolute;
     top: 10px;
     left: 10px;
     font-size: 20px;
+    z-index: 10;
   }
   #status {
     position: absolute;
     top: 40px;
     left: 10px;
     font-size: 18px;
+    z-index: 10;
+  }
+
+  /* Loading Screen Styles */
+  #loadingScreen {
+    position: absolute; /* Agar bisa ditumpuk di atas gameArea */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #222; /* Sama dengan warna body */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100; /* Pastikan loading screen di paling atas */
+    transition: opacity 0.5s ease-out; /* Transisi saat menghilang */
+  }
+  #progressBarContainer {
+    width: 80%;
+    max-width: 500px;
+    height: 30px;
+    background-color: #555;
+    border-radius: 5px;
+    margin: 20px auto;
+    overflow: hidden;
+  }
+  #progressBar {
+    height: 100%;
+    width: 0%;
+    background-color: #4CAF50;
+    border-radius: 5px;
+    transition: width 0.1s linear;
+  }
+  #loadingText {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  #playButton {
+    padding: 15px 30px;
+    font-size: 24px;
+    font-weight: bold;
+    background-color: #f44336; /* Warna merah untuk tombol play */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 20px;
+    opacity: 0; /* Sembunyikan tombol play secara default */
+    transition: opacity 0.5s ease-in;
+    z-index: 101; /* Di atas loading screen */
+  }
+  #playButton:hover {
+    background-color: #d32f2f; /* Warna lebih gelap saat hover */
   }
 </style>
 
 
 
+<div id="loadingScreen">
+  <div id="loadingText">Loading... 0%</div>
+  <div id="progressBarContainer">
+    <div id="progressBar"></div>
+  </div>
+  <button id="playButton">Main!!!</button>
+</div>
+
 <div id="gameArea">
   <div id="player" class="player">you</div>
+  <div id="points">Points: 0</div>
+  <div id="status">Tekan 'F' untuk serang, 'WASD' untuk bergerak, 'P' lihat poin, 'R' restart</div>
 </div>
-<div id="points">Points: 0</div>
-<div id="status">Tekan 'F' untuk serang, 'WASD' untuk bergerak, 'P' lihat poin, 'R' restart</div>
 
 <script>
-const gameArea = document.getElementById('gameArea');
-const player = document.getElementById('player');
-const pointsDisplay = document.getElementById('points');
-const status = document.getElementById('status');
+  const gameArea = document.getElementById('gameArea');
+  const loadingScreen = document.getElementById('loadingScreen');
+  const loadingText = document.getElementById('loadingText');
+  const progressBar = document.getElementById('progressBar');
+  const playButton = document.getElementById('playButton');
 
-// Load poin dari localStorage atau inisialisasi jika belum ada
-let points = localStorage.getItem('points') ? parseInt(localStorage.getItem('points')) : 0;
-let keysPressed = {}; // Objek untuk melacak tombol yang ditekan
+  const player = document.getElementById('player');
+  const pointsDisplay = document.getElementById('points');
+  const status = document.getElementById('status');
 
-// Posisi pemain
-let playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
-let enemies = []; // Array untuk menyimpan semua lawan (biasa, spesial, super spesial)
+  // Konstanta game
+  const NUM_NORMAL_ENEMIES = 30;
+  const SPECIAL_ENEMY_POINTS = 4500;
+  const SUPER_SPECIAL_ENEMY_POINTS = 45000;
+  const ENEMY_SIZE = 40;
+  const PLAYER_SPEED = 3;
+  const ENEMY_ATTACK_RANGE = 50;
+  const ENEMY_ATTACK_INTERVAL = 1000;
+  const LOADING_DURATION = 2000; // Durasi loading dalam milidetik (2 detik)
 
-const NUM_NORMAL_ENEMIES = 30; // Jumlah lawan biasa
-const SPECIAL_ENEMY_POINTS = 4500; // Poin dari lawan spesial oranye
-const SUPER_SPECIAL_ENEMY_POINTS = 45000; // Poin dari lawan super spesial hitam
+  let points = localStorage.getItem('points') ? parseInt(localStorage.getItem('points')) : 0;
+  let keysPressed = {};
+  let enemies = [];
+  let playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
 
-const ENEMY_SIZE = 40; // Ukuran semua lawan
-const PLAYER_SPEED = 3; // Kecepatan pemain
-const ENEMY_ATTACK_RANGE = 50; // Jarak serangan lawan
-const ENEMY_ATTACK_INTERVAL = 1000; // Interval serangan lawan (ms)
-
-// Fungsi untuk mendapatkan posisi acak di dalam game area
-function getRandomPosition() {
-  const x = Math.random() * (window.innerWidth - ENEMY_SIZE);
-  const y = Math.random() * (window.innerHeight - ENEMY_SIZE);
-  return { x, y };
-}
-
-// Fungsi untuk inisialisasi semua lawan
-function initEnemies() {
-  enemies = []; // Kosongkan array lawan
-  // Hapus elemen lawan yang ada di DOM sebelum membuat yang baru
-  document.querySelectorAll('.enemy, .special-enemy, .super-special-enemy').forEach(e => e.remove());
-
-  // 1. Buat lawan biasa (merah)
-  for (let i = 0; i < NUM_NORMAL_ENEMIES; i++) {
-    const el = document.createElement('div');
-    el.className = 'enemy';
-    el.innerText = 'E' + (i + 1);
-    gameArea.appendChild(el);
-    const pos = getRandomPosition();
-    el.style.left = pos.x + 'px';
-    el.style.top = pos.y + 'px';
-    enemies.push({ element: el, x: pos.x, y: pos.y, alive: true, isSpecial: false, isSuperSpecial: false });
+  // --- Fungsi Loading ---
+  function updateLoading(percentage) {
+    loadingText.innerText = `Loading... ${Math.round(percentage)}%`;
+    progressBar.style.width = `${percentage}%`;
   }
 
-  // 2. Buat lawan spesial (oranye)
-  const specialEl = document.createElement('div');
-  specialEl.className = 'special-enemy';
-  specialEl.innerText = 'SP'; // Label untuk lawan spesial
-  gameArea.appendChild(specialEl);
-  const specialPos = getRandomPosition();
-  specialEl.style.left = specialPos.x + 'px';
-  specialEl.style.top = specialPos.y + 'px';
-  enemies.push({ element: specialEl, x: specialPos.x, y: specialPos.y, alive: true, isSpecial: true, isSuperSpecial: false });
-
-  // 3. Buat lawan super spesial (hitam)
-  const superSpecialEl = document.createElement('div');
-  superSpecialEl.className = 'super-special-enemy';
-  superSpecialEl.innerText = 'SS'; // Label untuk lawan super spesial
-  gameArea.appendChild(superSpecialEl);
-  const superSpecialPos = getRandomPosition();
-  superSpecialEl.style.left = superSpecialPos.x + 'px';
-  superSpecialEl.style.top = superSpecialPos.y + 'px';
-  enemies.push({ element: superSpecialEl, x: superSpecialPos.x, y: superSpecialPos.y, alive: true, isSpecial: false, isSuperSpecial: true });
-}
-
-// Update posisi pemain di DOM
-function updatePlayerPosition() {
-  player.style.left = playerPos.x + 'px';
-  player.style.top = playerPos.y + 'px';
-}
-
-// Inisialisasi game saat pertama kali dimuat
-initEnemies();
-updatePlayerPosition();
-updatePointsDisplay();
-
-// Update tampilan poin
-function updatePointsDisplay() {
-  pointsDisplay.innerText = 'Points: ' + points;
-}
-
-// Game loop untuk gerakan yang mulus
-function gameLoop() {
-  // Gerakan pemain berdasarkan tombol yang ditekan
-  if (keysPressed['w']) playerPos.y -= PLAYER_SPEED;
-  if (keysPressed['s']) playerPos.y += PLAYER_SPEED;
-  if (keysPressed['a']) playerPos.x -= PLAYER_SPEED;
-  if (keysPressed['d']) playerPos.x += PLAYER_SPEED;
-
-  // Batasi posisi pemain agar tidak keluar layar
-  if (playerPos.x < 0) playerPos.x = 0;
-  if (playerPos.y < 0) playerPos.y = 0;
-  if (playerPos.x > window.innerWidth - ENEMY_SIZE) playerPos.x = window.innerWidth - ENEMY_SIZE;
-  if (playerPos.y > window.innerHeight - ENEMY_SIZE) playerPos.y = window.innerHeight - ENEMY_SIZE;
-
-  updatePlayerPosition();
-  requestAnimationFrame(gameLoop);
-}
-requestAnimationFrame(gameLoop); // Mulai game loop
-
-// Event listener untuk tombol ditekan
-document.addEventListener('keydown', (e) => {
-  const key = e.key.toLowerCase();
-  keysPressed[key] = true; // Tandai tombol ditekan
-  if (key === 'f') {
-    attack();
-  } else if (key === 'p') {
-    alert('Poin kamu: ' + points);
-  } else if (key === 'r') {
-    restartGame();
+  function showPlayButton() {
+    playButton.style.opacity = '1'; // Tampilkan tombol play
+    playButton.style.display = 'block'; // Pastikan tombol terlihat
   }
-});
 
-// Event listener untuk tombol dilepas
-document.addEventListener('keyup', (e) => {
-  keysPressed[e.key.toLowerCase()] = false; // Tandai tombol dilepas
-});
+  function hideLoadingScreen() {
+    loadingScreen.style.opacity = '0'; // Transisi menghilang
+    loadingScreen.style.pointerEvents = 'none'; // Nonaktifkan interaksi saat menghilang
+    gameArea.style.display = 'block'; // Tampilkan area game
+  }
 
-// Fungsi untuk menyerang lawan
-function attack() {
-  enemies.forEach(e => {
-    if (e.alive && isNear(playerPos, e)) {
-      e.alive = false;
-      e.element.style.display = 'none'; // Sembunyikan lawan yang dikalahkan
-
-      let pointsGained = 1; // Poin default untuk lawan biasa
-      let message = 'Kamu mengalahkan lawan.';
-
-      if (e.isSuperSpecial) {
-        pointsGained = SUPER_SPECIAL_ENEMY_POINTS;
-        message = 'Kamu mengalahkan LAWAN SUPER SPESIAL!!!';
-      } else if (e.isSpecial) {
-        pointsGained = SPECIAL_ENEMY_POINTS;
-        message = 'Kamu mengalahkan LAWAN SPESIAL!';
+  function startLoading() {
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 1;
+      updateLoading(progress);
+      if (progress >= 100) {
+        clearInterval(interval);
+        showPlayButton(); // Tampilkan tombol play setelah loading 100%
       }
+    }, LOADING_DURATION / 100);
+  }
 
-      points += pointsGained;
-      localStorage.setItem('points', points); // Simpan poin ke localStorage
-      updatePointsDisplay();
-      status.innerText = message;
+  // --- Fungsi Game ---
+  function getRandomPosition() {
+    const x = Math.random() * (window.innerWidth - ENEMY_SIZE);
+    const y = Math.random() * (window.innerHeight - ENEMY_SIZE);
+    return { x, y };
+  }
 
-      // Beri jeda sebelum status berubah dan cek apakah ada lawan yang tersisa
-      setTimeout(() => {
-        const remainingEnemies = enemies.filter(en => en.alive);
-        if (remainingEnemies.length > 0) {
-          status.innerText = 'Lawan menyerang kamu!';
-        } else {
-          status.innerText = 'Semua lawan dikalahkan! Tekan R untuk restart.';
+  function initEnemies() {
+    enemies = [];
+    document.querySelectorAll('.enemy, .special-enemy, .super-special-enemy').forEach(e => e.remove());
+
+    for (let i = 0; i < NUM_NORMAL_ENEMIES; i++) {
+      const el = document.createElement('div');
+      el.className = 'enemy';
+      el.innerText = 'E' + (i + 1);
+      gameArea.appendChild(el);
+      const pos = getRandomPosition();
+      el.style.left = pos.x + 'px';
+      el.style.top = pos.y + 'px';
+      enemies.push({ element: el, x: pos.x, y: pos.y, alive: true, isSpecial: false, isSuperSpecial: false });
+    }
+
+    const specialEl = document.createElement('div');
+    specialEl.className = 'special-enemy';
+    specialEl.innerText = 'SP';
+    gameArea.appendChild(specialEl);
+    const specialPos = getRandomPosition();
+    specialEl.style.left = specialPos.x + 'px';
+    specialEl.style.top = specialPos.y + 'px';
+    enemies.push({ element: specialEl, x: specialPos.x, y: specialPos.y, alive: true, isSpecial: true, isSuperSpecial: false });
+
+    const superSpecialEl = document.createElement('div');
+    superSpecialEl.className = 'super-special-enemy';
+    superSpecialEl.innerText = 'SS';
+    gameArea.appendChild(superSpecialEl);
+    const superSpecialPos = getRandomPosition();
+    superSpecialEl.style.left = superSpecialPos.x + 'px';
+    superSpecialEl.style.top = superSpecialPos.y + 'px';
+    enemies.push({ element: superSpecialEl, x: superSpecialPos.x, y: superSpecialPos.y, alive: true, isSpecial: false, isSuperSpecial: true });
+  }
+
+  function updatePlayerPosition() {
+    player.style.left = playerPos.x + 'px';
+    player.style.top = playerPos.y + 'px';
+  }
+
+  function updatePointsDisplay() {
+    pointsDisplay.innerText = 'Points: ' + points;
+  }
+
+  function gameLoop() {
+    if (keysPressed['w']) playerPos.y -= PLAYER_SPEED;
+    if (keysPressed['s']) playerPos.y += PLAYER_SPEED;
+    if (keysPressed['a']) playerPos.x -= PLAYER_SPEED;
+    if (keysPressed['d']) playerPos.x += PLAYER_SPEED;
+
+    if (playerPos.x < 0) playerPos.x = 0;
+    if (playerPos.y < 0) playerPos.y = 0;
+    if (playerPos.x > window.innerWidth - ENEMY_SIZE) playerPos.x = window.innerWidth - ENEMY_SIZE;
+    if (playerPos.y > window.innerHeight - ENEMY_SIZE) playerPos.y = window.innerHeight - ENEMY_SIZE;
+
+    updatePlayerPosition();
+    requestAnimationFrame(gameLoop);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    keysPressed[key] = true;
+    if (key === 'f') {
+      attack();
+    } else if (key === 'p') {
+      alert('Poin kamu: ' + points);
+    } else if (key === 'r') {
+      restartGame();
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    keysPressed[e.key.toLowerCase()] = false;
+  });
+
+  function attack() {
+    enemies.forEach(e => {
+      if (e.alive && isNear(playerPos, e)) {
+        e.alive = false;
+        e.element.style.display = 'none';
+
+        let pointsGained = 1;
+        let message = 'Kamu mengalahkan lawan.';
+
+        if (e.isSuperSpecial) {
+          pointsGained = SUPER_SPECIAL_ENEMY_POINTS;
+          message = 'Kamu mengalahkan LAWAN SUPER SPESIAL!!!';
+        } else if (e.isSpecial) {
+          pointsGained = SPECIAL_ENEMY_POINTS;
+          message = 'Kamu mengalahkan LAWAN SPESIAL!';
         }
-      }, 500);
-    }
+
+        points += pointsGained;
+        localStorage.setItem('points', points);
+        updatePointsDisplay();
+        status.innerText = message;
+
+        setTimeout(() => {
+          const remainingEnemies = enemies.filter(en => en.alive);
+          if (remainingEnemies.length > 0) {
+            status.innerText = 'Lawan menyerang kamu!';
+          } else {
+            status.innerText = 'Semua lawan dikalahkan! Tekan R untuk restart.';
+          }
+        }, 500);
+      }
+    });
+  }
+
+  function isNear(pos1, enemy) {
+    const dx = pos1.x - enemy.x;
+    const dy = pos1.y - enemy.y;
+    return Math.sqrt(dx*dx + dy*dy) < ENEMY_ATTACK_RANGE;
+  }
+
+  setInterval(() => {
+    enemies.forEach(e => {
+      if (e.alive && isNear(playerPos, e)) {
+        status.innerText = 'Kamu diserang oleh ' + e.element.innerText;
+      }
+    });
+  }, ENEMY_ATTACK_INTERVAL);
+
+  function restartGame() {
+    playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
+    updatePlayerPosition();
+    initEnemies();
+    status.innerText = 'Game di-restart!';
+  }
+
+  window.addEventListener('resize', () => {
+    if (playerPos.x > window.innerWidth - ENEMY_SIZE) playerPos.x = window.innerWidth - ENEMY_SIZE;
+    if (playerPos.y > window.innerHeight - ENEMY_SIZE) playerPos.y = window.innerHeight - ENEMY_SIZE;
+    updatePlayerPosition();
   });
-}
 
-// Cek apakah pemain dekat dengan lawan
-function isNear(pos1, enemy) {
-  const dx = pos1.x - enemy.x;
-  const dy = pos1.y - enemy.y;
-  // Menggunakan Pythagoras untuk menghitung jarak
-  return Math.sqrt(dx*dx + dy*dy) < ENEMY_ATTACK_RANGE;
-}
-
-// Interval untuk membuat lawan menyerang secara otomatis
-setInterval(() => {
-  enemies.forEach(e => {
-    if (e.alive && isNear(playerPos, e)) {
-      status.innerText = 'Kamu diserang oleh ' + e.element.innerText;
-      // Di sini bisa ditambahkan logika pengurangan health pemain atau game over
-    }
+  // Event listener untuk tombol "Main!!!"
+  playButton.addEventListener('click', () => {
+    hideLoadingScreen();
+    // Inisialisasi game hanya setelah tombol "Main!!!" diklik
+    initEnemies();
+    updatePlayerPosition();
+    updatePointsDisplay();
+    requestAnimationFrame(gameLoop); // Mulai game loop
   });
-}, ENEMY_ATTACK_INTERVAL);
 
-// Fungsi untuk me-restart game
-function restartGame() {
-  // Reset posisi pemain ke tengah layar
-  playerPos = { x: window.innerWidth/2, y: window.innerHeight/2 };
-  updatePlayerPosition();
-  // Inisialisasi ulang semua lawan
-  initEnemies();
-  status.innerText = 'Game di-restart!';
-}
-
-// Handle resize window agar posisi pemain tetap proporsional
-window.addEventListener('resize', () => {
-  // Pastikan pemain tidak keluar dari batas baru layar
-  if (playerPos.x > window.innerWidth - ENEMY_SIZE) playerPos.x = window.innerWidth - ENEMY_SIZE;
-  if (playerPos.y > window.innerHeight - ENEMY_SIZE) playerPos.y = window.innerHeight - ENEMY_SIZE;
-  updatePlayerPosition();
-});
+  // Mulai proses loading saat halaman dimuat
+  startLoading();
 </script>
-
 
 <script src="./script.js"></script></body></html>
